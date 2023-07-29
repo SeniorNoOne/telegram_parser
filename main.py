@@ -44,11 +44,11 @@ async def main():
         message = event.message
 
         if any([match(pattern, message.text) for pattern in target_words]):
-            messages.append(message.to_dict)
+            messages.append(message.to_dict())
             await bot.send_message(me.id, message.text)
 
         if len(messages) % transaction_size:
-            collection.many(messages)
+            collection.insert_many(messages)
 
     await client.run_until_disconnected()
 

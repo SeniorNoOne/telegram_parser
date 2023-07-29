@@ -6,7 +6,7 @@ UIElements = {
         'exit_msg': '',
     },
     'add_target': {
-        'msg': 'Enter target words to parse (comma separated)',
+        'msg': 'Please enter target words to parse (comma separated)',
         'ui': ('Cancel',),
         'error_msg': '',
         'exit_msg': '',
