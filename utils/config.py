@@ -80,3 +80,8 @@ ui_config = {
         },
     },
 }
+
+db = {
+    'user_table_name': 'user',
+    'msg_table_name': 'msg',
+}

@@ -1,5 +1,4 @@
 telethon
-pyTelegramBotAPI
 pymongo
 flake8
 requests

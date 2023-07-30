@@ -1,58 +1,33 @@
+import asyncio
 import configparser
-from re import match
-from hashlib import sha256
 
-from telethon import TelegramClient, events
-from telegram import Bot
-
-from db_conn import db
-
-
-# Reading Configs
-config = configparser.ConfigParser()
-config.read("config/config.ini")
-
-# Setting configuration values
-api_id = config['Telegram']['api_id']
-api_hash = config['Telegram']['api_hash']
-
-username = config['Telegram']['username']
-username_hash = sha256(username.encode('utf-8')).hexdigest()
-bot_token = config['Telegram']['bot_token']
-
-collection = db[username_hash]
-transaction_size = 100
-
-target_channel = ''
-target_words = ['.']
-
-
-async def main():
-    bot = Bot(token=bot_token)
-    print('Bot is started')
-
-    client = TelegramClient(username, api_id, api_hash)
-    await client.start()
-    me = await client.get_me()
-    print('Client is created')
-
-    channel = await client.get_entity(target_channel)
-    messages = []
-
-    @client.on(events.NewMessage(chats=channel))
-    async def new_message_handler(event):
-        message = event.message
-
-        if any([match(pattern, message.text) for pattern in target_words]):
-            messages.append(message.to_dict())
-            await bot.send_message(me.id, message.text)
-
-        if len(messages) % transaction_size:
-            collection.insert_many(messages)
-
-    await client.run_until_disconnected()
+from classes.bot import CustomBot
+from classes.db_conn import DB
+from classes.parser import Parser
+from utils.config import ui_config, db
 
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    # Reading Configs
+    config = configparser.ConfigParser()
+    config.read("config/config.ini")
+
+    # Setting configuration values
+    api_id = config['Telegram']['api_id']
+    api_hash = config['Telegram']['api_hash']
+
+    username = config['Telegram']['username']
+    bot_token = config['Telegram']['bot_token']
+
+    # DB
+    user_table_name = db['user_table_name']
+    msg_table_name = db['msg_table_name']
+
+    target_channel = 'https://t.me/test_parse_bot_1'
+    target_words = ['.']
+
+    db_uri = config['DB']['uri']
+
+    bot = CustomBot(bot_token, ui_config)
+    db = DB(db_uri, user_table_name, msg_table_name)
+    parser = Parser(username, api_id, api_hash, target_channel, target_words)
