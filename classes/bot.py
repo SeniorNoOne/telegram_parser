@@ -6,87 +6,103 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from utils.ui_elements import UIElements
 from utils.common import log_function_call
-
-API_TOKEN = '6090729179:AAE_nnOWQBuI3R8-CkDTv7UuULN069tw1Bg'
 
 
 class Form(StatesGroup):
-    get_target_words = State()
-    process_target_input = State()
+    process_target_words = State()
     modify_target_words = State()
 
 
 class CustomBot:
-    ui_elements = UIElements
-
-    def __init__(self, token, *args, **kwargs):
+    def __init__(self, token, ui_config, *args, **kwargs):
         self.bot = Bot(token=token, *args, **kwargs)
+        self.ui_elements = ui_config
         self.storage = MemoryStorage()
         self.dp = Dispatcher(self.bot, storage=self.storage)
-        self.storage = MemoryStorage()
         self.target_words = []
+        self.register_message_handlers()
 
-        self.dp.register_message_handler(self.start_menu, commands='start')
-        self.dp.register_message_handler(self.get_target_words,
-                                         Text(equals='Set target words', ignore_case=True),
-                                         state=Form.get_target_words)
-        self.dp.register_message_handler(self.process_target_words,
-                                         state=Form.process_target_input)
-        self.dp.register_message_handler(self.modify_target_words,
-                                         Text(equals=('Append new words',
-                                                      'Replace existing words'),
-                                              ignore_case=True),
-                                         state=Form.modify_target_words)
+    def register_message_handlers(self):
+        for method_name, parameters in self.ui_elements.items():
+            message_handle_params = parameters['handlers']
+
+            method = getattr(self, method_name)
+            filters = message_handle_params['filters']
+            commands = message_handle_params['commands']
+            state = message_handle_params['state']
+
+            if state == 'method_name':
+                state = getattr(Form, method_name, state)
+
+            if filters:
+                filters = Text(filters, ignore_case=True)
+                self.dp.register_message_handler(method, filters, commands=commands, state=state)
+            else:
+                self.dp.register_message_handler(method, commands=commands, state=state)
 
     @log_function_call
-    async def start_menu(self, message: types.Message, **kwargs):
-        ui_config = self.ui_elements['start_menu']
+    async def start_handler(self, message: types.Message, **kwargs):
+        ui_config = self.ui_elements['start_handler']
         markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
 
-        response = ui_config['msg']
         if message.text == '/start':
-            response = self.greeting_str(message.from_user) + '\n\n' + ui_config['msg']
+            msg = self.greeting_str(message.from_user) + '\n\n' + ui_config['msg']
 
-        await Form.get_target_words.set()
-        await message.answer(response, reply_markup=markup)
+        await message.answer(msg, reply_markup=markup)
+
+    @log_function_call
+    async def cancel_handler(self, message: types.Message, **kwargs):
+        ui_config = self.ui_elements['cancel_handler']
+        markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
+        state = kwargs['state']
+
+        current_state = await state.get_state()
+        if current_state:
+            await state.finish()
+
+        await message.answer(msg, reply_markup=markup)
+        await self.start_handler(message)
 
     @log_function_call
     async def get_target_words(self, message: types.Message, **kwargs):
-        ui_config = self.ui_elements['add_target']
+        ui_config = self.ui_elements['get_target_words']
         markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
 
-        await Form.process_target_input.set()
-        await message.answer(ui_config['msg'], reply_markup=markup)
+        await Form.process_target_words.set()
+        await message.answer(msg, reply_markup=markup)
 
     @log_function_call
     async def process_target_words(self, message: types.Message, **kwargs):
-        ui_config = self.ui_elements['process_target_input']
+        ui_config = self.ui_elements['process_target_words']
         markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
         state = kwargs['state']
 
-        response = ui_config['msg']
         target_words = []
         if message.content_type != 'text':
-            response = ui_config['error_msg'] + message.content_type
+            msg = ui_config['error_msg'] + message.content_type
         else:
             target_word_raw = message.text.split(',')
             target_words = list(dict.fromkeys(target_word_raw))
-            response += '\n' + ', '.join(target_words)
+            msg += '\n' + ', '.join(target_words)
 
         async with state.proxy() as data:
             data['name'] = target_words
 
         await Form.modify_target_words.set()
-        await message.answer(response, reply_markup=markup)
+        await message.answer(msg, reply_markup=markup)
 
     @log_function_call
     async def modify_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['modify_target_words']
         markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
         state = kwargs['state']
-        append_cond, replace_cond = self.ui_elements['process_target_input']['ui']
+        append_cond, replace_cond, _ = self.ui_elements['process_target_words']['ui']
 
         async with state.proxy() as data:
             target_words = data['name']
@@ -95,24 +111,64 @@ class CustomBot:
             self.target_words.extend(target_words)
         elif message.text.strip() == replace_cond:
             self.target_words = target_words
-        else:
-            pass
 
-        response = ui_config['msg'] + '\n'
-        response += ', '.join(self.target_words)
+        msg += '\n' + ', '.join(self.target_words)
 
         await state.finish()
-        await message.answer(response, reply_markup=markup)
-        await self.start_menu(message)
+        await message.answer(msg, reply_markup=markup)
+        await self.start_handler(message)
+
+    @log_function_call
+    async def start_parsing(self, message: types.Message, **kwargs):
+        ui_config = self.ui_elements['start_parsing']
+        markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
+
+        if self.target_words:
+            await message.answer(msg, reply_markup=markup)
+        else:
+            await message.answer(ui_config['error_msg'], reply_markup=markup)
+
+        await self.start_handler(message)
+
+    @log_function_call
+    async def pause_parsing(self, message: types.Message, **kwargs):
+        ui_config = self.ui_elements['pause_parsing']
+        markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
+        error_msg = ui_config['error_msg']
+
+        if self.target_words:
+            await message.answer(msg, reply_markup=markup)
+        else:
+            await message.answer(error_msg, reply_markup=markup)
+
+        await self.start_handler(message)
+
+    @log_function_call
+    async def delete_parsed_info(self, message: types.Message, **kwargs):
+        ui_config = self.ui_elements['delete_parsed_info']
+        markup = self.create_ui(ui_config['ui'])
+        msg = ui_config['msg']
+
+        if self.target_words:
+            await message.answer(msg, reply_markup=markup)
+        else:
+            await message.answer(ui_config['error_msg'], reply_markup=markup)
+
+        await self.start_handler(message)
 
     async def start(self):
         await self.dp.start_polling()
 
     @staticmethod
     def create_ui(buttons):
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        buttons = [types.KeyboardButton(button_name) for button_name in buttons]
-        markup.add(*buttons)
+        if buttons:
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            buttons = [types.KeyboardButton(button_name) for button_name in buttons]
+            markup.add(*buttons)
+        else:
+            markup = types.ReplyKeyboardRemove()
         return markup
 
     @staticmethod
@@ -122,13 +178,3 @@ class CustomBot:
         greeting_str += f'{user.last_name}' if user.last_name else ''
         greeting_str += f'({user.username})' if user.username else ''
         return greeting_str
-
-
-if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read("config/config.ini")
-
-    bot_token = config['Telegram']['bot_token']
-    bot = CustomBot(bot_token)
-
-    asyncio.run(bot.start())
