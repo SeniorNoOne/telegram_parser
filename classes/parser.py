@@ -6,8 +6,10 @@ from utils.common import logger
 
 
 class Parser:
-    def __init__(self, username, api_id, api_hash,
+    def __init__(self, event_manager, username, api_id, api_hash,
                  target_channel_name, target_words):
+        self.event_manager = event_manager
+
         # TG client connection credentials
         self.username = username
         self.api_id = api_id
@@ -29,15 +31,18 @@ class Parser:
         logger.info('Me is fetched')
 
         self.target_channel = await self.client.get_entity(self.target_channel_name)
-        messages = []
 
-        @self.client.on(events.NewMessage(chats=self.target_channel))
-        async def new_message_handler(event):
-            message = event.message
-
-            if any([re.match(pattern, message.text) for pattern in self.target_words]):
-                messages.append(message.to_dict())
-                # await self.bot.send_message(self.me.id, message.text)
-                print(message.text)
+        self.client.add_event_handler(self._new_message_handler,
+                                      events.NewMessage(chats=self.target_channel))
 
         await self.client.run_until_disconnected()
+
+    async def _new_message_handler(self, event):
+        message = event.message
+        users = self.event_manager.trigger_event('fetch_users')
+
+        for user in users:
+            for target_word in user['target_words']:
+                if re.match(target_word, message.text):
+                    await self.event_manager.trigger_event('notify_user', user['id'], message.text)
+                    break

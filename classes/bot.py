@@ -12,12 +12,13 @@ class Form(StatesGroup):
 
 
 class CustomBot:
-    def __init__(self, token, ui_config, *args, **kwargs):
+    def __init__(self, event_manager, token, ui_config, *args, **kwargs):
+        self.event_manager = event_manager
+
         self.bot = Bot(token=token, *args, **kwargs)
         self.ui_elements = ui_config
         self.storage = MemoryStorage()
         self.dp = Dispatcher(self.bot, storage=self.storage)
-        self.target_words = []
         self.register_message_handlers()
 
     def register_message_handlers(self):
@@ -42,10 +43,13 @@ class CustomBot:
     async def start_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_handler']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, *_ = ui_config['msg']
 
         if message.text == '/start':
-            msg = self.greeting_str(message.from_user) + '\n\n' + ui_config['msg']
+            msg = self.greeting_str(message.from_user) + '\n\n' + msg
+
+        user = self.user_from_message(message)
+        self.event_manager.trigger_event('insert_user', user)
 
         await message.answer(msg, reply_markup=markup)
 
@@ -53,7 +57,7 @@ class CustomBot:
     async def cancel_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['cancel_handler']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, *_ = ui_config['msg']
         state = kwargs['state']
 
         current_state = await state.get_state()
@@ -67,7 +71,13 @@ class CustomBot:
     async def get_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['get_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, *_ = ui_config['msg']
+
+        old_target_words = self.event_manager.trigger_event('fetch_target_words',
+                                                            user_filter={'id': message.chat.id})
+
+        if old_target_words:
+            msg += '\n\nCurrent target words: ' + ', '.join(old_target_words)
 
         await Form.process_target_words.set()
         await message.answer(msg, reply_markup=markup)
@@ -76,7 +86,7 @@ class CustomBot:
     async def process_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['process_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, *_ = ui_config['msg']
         state = kwargs['state']
 
         target_words = []
@@ -97,19 +107,29 @@ class CustomBot:
     async def modify_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['modify_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, *_ = ui_config['msg']
         state = kwargs['state']
-        append_cond, replace_cond, _ = self.ui_elements['process_target_words']['ui']
+        append_cond, replace_cond = ui_config['extras']
 
+        # Getting target words from DB
+        old_target_words = self.event_manager.trigger_event('fetch_target_words',
+                                                            user_filter={'id': message.chat.id})
+        # Getting new target words from bot storage
         async with state.proxy() as data:
-            target_words = data['name']
+            new_target_words = data['name']
 
+        # Getting user form message and updating target words
+        user = self.user_from_message(message)
+
+        target_words = list(dict.fromkeys(new_target_words + old_target_words))
         if message.text.strip() == append_cond:
-            self.target_words.extend(target_words)
+            user['target_words'].extend(target_words)
         elif message.text.strip() == replace_cond:
-            self.target_words = target_words
+            user['target_words'] = target_words
 
-        msg += '\n' + ', '.join(self.target_words)
+        self.event_manager.trigger_event('update_target_words', user)
+
+        msg += '\n' + ', '.join(target_words)
 
         await state.finish()
         await message.answer(msg, reply_markup=markup)
@@ -119,12 +139,13 @@ class CustomBot:
     async def start_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_parsing']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, error_msg, _ = ui_config['msg']
 
-        if self.target_words:
+        if self.user_from_message(message):
+            self.event_manager.trigger_event('start_parser')
             await message.answer(msg, reply_markup=markup)
         else:
-            await message.answer(ui_config['error_msg'], reply_markup=markup)
+            await message.answer(error_msg, reply_markup=markup)
 
         await self.start_handler(message)
 
@@ -132,10 +153,10 @@ class CustomBot:
     async def pause_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['pause_parsing']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
-        error_msg = ui_config['error_msg']
+        msg, error_msg, _ = ui_config['msg']
 
-        if self.target_words:
+        if self.user_from_message(message):
+            await self.event_manager.trigger_event('pause_parser')
             await message.answer(msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
@@ -146,12 +167,12 @@ class CustomBot:
     async def delete_parsed_info(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['delete_parsed_info']
         markup = self.create_ui(ui_config['ui'])
-        msg = ui_config['msg']
+        msg, error_msg, _ = ui_config['msg']
 
-        if self.target_words:
+        if self.user_from_message(message):
             await message.answer(msg, reply_markup=markup)
         else:
-            await message.answer(ui_config['error_msg'], reply_markup=markup)
+            await message.answer(error_msg, reply_markup=markup)
 
         await self.start_handler(message)
 
@@ -175,3 +196,10 @@ class CustomBot:
         greeting_str += f'{user.last_name}' if user.last_name else ''
         greeting_str += f'({user.username})' if user.username else ''
         return greeting_str
+
+    @staticmethod
+    def user_from_message(message):
+        user = message.chat
+        data = dict(user)
+        data['target_words'] = []
+        return data
