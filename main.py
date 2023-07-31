@@ -26,8 +26,8 @@ if __name__ == '__main__':
     user_table_name = db['user_table_name']
     msg_table_name = db['msg_table_name']
 
-    target_channel = 'https://t.me/test_parse_bot_1'
-    target_words = ['.']
+    target_channel = ''
+    target_words = []
 
     db_uri = config['DB']['uri']
 

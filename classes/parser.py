@@ -1,8 +1,9 @@
 import re
 
 from telethon import TelegramClient, events
+from aiogram.types import ParseMode
 
-from utils.common import logger
+from utils.common import logger, log_function_call
 
 
 class Parser:
@@ -17,11 +18,22 @@ class Parser:
         self.client = None
         self.me = None
 
+        self.is_paused = True
+
         # Target channel and words
         self.target_channel_name = target_channel_name
         self.target_channel = None
         self.target_words = target_words
 
+    @log_function_call
+    async def start_parser(self):
+        self.is_paused = False
+
+    @log_function_call
+    async def pause_parser(self):
+        self.is_paused = True
+
+    @log_function_call
     async def start(self):
         self.client = TelegramClient(self.username, self.api_id, self.api_hash)
         await self.client.start()
@@ -37,12 +49,30 @@ class Parser:
 
         await self.client.run_until_disconnected()
 
+    @log_function_call
     async def _new_message_handler(self, event):
+        if self.is_paused:
+            return
+
         message = event.message
         users = self.event_manager.trigger_event('fetch_users')
 
         for user in users:
             for target_word in user['target_words']:
                 if re.match(target_word, message.text):
-                    await self.event_manager.trigger_event('notify_user', user['id'], message.text)
+                    post_link = f'https://t.me/c/{self.target_channel.id}/{message.id}'
+                    self.event_manager.trigger_event(
+                        'insert_message',
+                        {
+                            'post_link': post_link,
+                            'message': message.text,
+                        }
+                    )
+
+                    reply_msg = 'New message that you might be interested in has been posted\n\n'
+                    reply_msg += f'[Post link]({post_link})\n\n'
+                    reply_msg += 'Message content:\n' + message.text
+
+                    await self.event_manager.trigger_event('notify_user', user['id'],
+                                                           reply_msg, parse_mode=ParseMode.MARKDOWN)
                     break

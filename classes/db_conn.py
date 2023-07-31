@@ -65,3 +65,18 @@ class DB:
         for user in users:
             target_words.extend(user['target_words'])
         return target_words
+
+    @log_func_call
+    def delete_user(self, user_filter):
+        user_filter = {'id': user_filter['id']}
+        self.user_table.delete_one(user_filter)
+
+    @log_func_call
+    def insert_message(self, message):
+        self.msg_table.insert_one(message)
+
+    @log_func_call
+    def delete_message(self, msg_filter):
+        self.msg_table.delete_many(msg_filter)
+
+

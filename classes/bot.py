@@ -142,7 +142,7 @@ class CustomBot:
         msg, error_msg, _ = ui_config['msg']
 
         if self.user_from_message(message):
-            self.event_manager.trigger_event('start_parser')
+            await self.event_manager.trigger_event('start_parser')
             await message.answer(msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
@@ -169,7 +169,8 @@ class CustomBot:
         markup = self.create_ui(ui_config['ui'])
         msg, error_msg, _ = ui_config['msg']
 
-        if self.user_from_message(message):
+        if user := self.user_from_message(message):
+            self.event_manager.trigger_event('delete_user', user)
             await message.answer(msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
