@@ -3,7 +3,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from utils.common import log_function_call
+from utils.common import log_async_func
 
 
 class Form(StatesGroup):
@@ -39,7 +39,7 @@ class CustomBot:
             else:
                 self.dp.register_message_handler(method, commands=commands, state=state)
 
-    @log_function_call
+    @log_async_func
     async def start_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_handler']
         markup = self.create_ui(ui_config['ui'])
@@ -53,7 +53,7 @@ class CustomBot:
 
         await message.answer(msg, reply_markup=markup)
 
-    @log_function_call
+    @log_async_func
     async def cancel_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['cancel_handler']
         markup = self.create_ui(ui_config['ui'])
@@ -67,7 +67,7 @@ class CustomBot:
         await message.answer(msg, reply_markup=markup)
         await self.start_handler(message)
 
-    @log_function_call
+    @log_async_func
     async def get_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['get_target_words']
         markup = self.create_ui(ui_config['ui'])
@@ -82,16 +82,16 @@ class CustomBot:
         await Form.process_target_words.set()
         await message.answer(msg, reply_markup=markup)
 
-    @log_function_call
+    @log_async_func
     async def process_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['process_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg, *_ = ui_config['msg']
+        msg, error_msg, _ = ui_config['msg']
         state = kwargs['state']
 
-        target_words = []
         if message.content_type != 'text':
-            msg = ui_config['error_msg'] + message.content_type
+            target_words = []
+            msg = error_msg
         else:
             target_word_raw = message.text.split(',')
             target_words = list(dict.fromkeys(target_word_raw))
@@ -103,7 +103,7 @@ class CustomBot:
         await Form.modify_target_words.set()
         await message.answer(msg, reply_markup=markup)
 
-    @log_function_call
+    @log_async_func
     async def modify_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['modify_target_words']
         markup = self.create_ui(ui_config['ui'])
@@ -128,14 +128,13 @@ class CustomBot:
             user['target_words'] = target_words
 
         self.event_manager.trigger_event('update_target_words', user)
-
         msg += '\n' + ', '.join(target_words)
 
         await state.finish()
         await message.answer(msg, reply_markup=markup)
         await self.start_handler(message)
 
-    @log_function_call
+    @log_async_func
     async def start_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_parsing']
         markup = self.create_ui(ui_config['ui'])
@@ -149,7 +148,7 @@ class CustomBot:
 
         await self.start_handler(message)
 
-    @log_function_call
+    @log_async_func
     async def pause_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['pause_parsing']
         markup = self.create_ui(ui_config['ui'])
@@ -163,7 +162,7 @@ class CustomBot:
 
         await self.start_handler(message)
 
-    @log_function_call
+    @log_async_func
     async def delete_parsed_info(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['delete_parsed_info']
         markup = self.create_ui(ui_config['ui'])

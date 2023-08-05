@@ -31,7 +31,7 @@ ui_config = {
         },
     },
     'process_target_words': {
-        'msg': ('Target words used in parsing:', '', 'Sorry, I cannot process '),
+        'msg': ('Target words used in parsing:', 'Sorry, I cannot process ', ''),
         'ui': ('Append new words', 'Replace existing words', 'Cancel'),
         'extras': (),
         'handlers': {
@@ -82,8 +82,8 @@ ui_config = {
     },
 }
 
-db = {
+db_config = {
     'db_name': 'heli_parser',
     'user_table_name': 'user',
-    'msg_table_name': 'msg',
+    'parsed_data_table_name': 'post',
 }
