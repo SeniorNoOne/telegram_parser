@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger()
 
 
-def log_function_call(func):
+def log_async_func(func):
     async def wrapper(*args, **kwargs):
         if args and kwargs:
             logger.info(f"Calling function: {func.__name__}\n"
@@ -17,7 +17,7 @@ def log_function_call(func):
     return wrapper
 
 
-def log_func_call(func):
+def log_func(func):
     def wrapper(*args, **kwargs):
         if args and kwargs:
             logger.info(f"Calling function: {func.__name__}\n"

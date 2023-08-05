@@ -82,8 +82,8 @@ ui_config = {
     },
 }
 
-db = {
+db_config = {
     'db_name': 'heli_parser',
     'user_table_name': 'user',
-    'msg_table_name': 'msg',
+    'parsed_data_table_name': 'post',
 }

@@ -8,12 +8,13 @@ class Dispatcher:
         self.db = db
         self.parser = parser
 
+        # Async tasks
         self.bot_task = None
         self.parser_task = None
 
         # DB operations
         self.event_manager.subscribe('insert_user', self.db.insert_user)
-        self.event_manager.subscribe('insert_message', self.db.insert_message)
+        self.event_manager.subscribe('insert_parsed_data', self.db.insert_message)
         self.event_manager.subscribe('fetch_user', self.db.fetch_users)
         self.event_manager.subscribe('fetch_users', self.db.fetch_users)
         self.event_manager.subscribe('fetch_target_words', self.db.fetch_target_words)
