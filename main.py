@@ -27,13 +27,13 @@ if __name__ == '__main__':
     user_table_name = db_config['user_table_name']
     parsed_data_table_name = db_config['parsed_data_table_name']
 
-    target_channel = 'https://t.me/test_parse_bot_1'
-    target_words = []
+    # Parser
+    target_channel = config['Telegram']['target_channel']
 
     event_manager = EventManager()
     bot = CustomBot(event_manager, bot_token, ui_config)
     db = DB(event_manager, db_uri, db_name, user_table_name, parsed_data_table_name)
-    parser = Parser(event_manager, username, api_id, api_hash, target_channel, target_words)
+    parser = Parser(event_manager, username, api_id, api_hash, target_channel)
 
     dispatcher = Dispatcher(event_manager, bot, db, parser)
     asyncio.run(dispatcher.start())

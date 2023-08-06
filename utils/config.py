@@ -21,7 +21,7 @@ ui_config = {
     },
     'get_target_words': {
         'msg': ('Please enter target words to parse (comma separated)', '',
-                'Current target words:'),
+                'Current target words: '),
         'ui': ('Cancel',),
         'extras': (),
         'handlers': {
@@ -31,7 +31,7 @@ ui_config = {
         },
     },
     'process_target_words': {
-        'msg': ('Target words used in parsing:', '', 'Sorry, I cannot process '),
+        'msg': ('Target words used in parsing:', 'Sorry, I cannot process ', ''),
         'ui': ('Append new words', 'Replace existing words', 'Cancel'),
         'extras': (),
         'handlers': {

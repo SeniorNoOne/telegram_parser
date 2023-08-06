@@ -36,18 +36,18 @@ class DB:
             logger.info('Duplicate user document. Skipping')
 
     @log_func
-    def insert_msg(self, data):
+    def insert_parsed_data(self, data):
         try:
             self.parsed_data_table.insert_one(data)
         except DuplicateKeyError:
-            logger.info('Duplicate message document. Skipping')
+            logger.info('Duplicate parsed data document. Skipping')
 
     @log_func
     def update_user(self, data):
         self.user_table.update_one({'id': data['id']}, {'$set': data})
 
     @log_func
-    def update_msg(self, update, data):
+    def update_parsed_data(self, update, data):
         self.parsed_data_table.update_one(update, {'$set': data})
 
     @log_func
@@ -62,7 +62,7 @@ class DB:
 
         target_words = []
         for user in users:
-            target_words.extend(user['target_words'])
+            target_words.extend(user['target_wFords'])
         return target_words
 
     @log_func
@@ -71,9 +71,5 @@ class DB:
         self.user_table.delete_one(user_filter)
 
     @log_func
-    def insert_message(self, message):
-        self.parsed_data_table.insert_one(message)
-
-    @log_func
-    def delete_message(self, msg_filter):
+    def delete_parsed_data(self, msg_filter):
         self.parsed_data_table.delete_many(msg_filter)
