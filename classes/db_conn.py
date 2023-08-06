@@ -62,7 +62,7 @@ class DB:
 
         target_words = []
         for user in users:
-            target_words.extend(user['target_words'])
+            target_words.extend(user['target_wFords'])
         return target_words
 
     @log_func
@@ -71,5 +71,5 @@ class DB:
         self.user_table.delete_one(user_filter)
 
     @log_func
-    def delete_message(self, msg_filter):
+    def delete_parsed_data(self, msg_filter):
         self.parsed_data_table.delete_many(msg_filter)
