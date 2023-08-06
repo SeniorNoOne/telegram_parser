@@ -21,7 +21,7 @@ ui_config = {
     },
     'get_target_words': {
         'msg': ('Please enter target words to parse (comma separated)', '',
-                'Current target words:'),
+                'Current target words: '),
         'ui': ('Cancel',),
         'extras': (),
         'handlers': {

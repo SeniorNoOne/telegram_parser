@@ -7,8 +7,7 @@ from utils.common import logger, log_async_func
 
 
 class Parser:
-    def __init__(self, event_manager, username, api_id, api_hash,
-                 target_channel_name, target_words):
+    def __init__(self, event_manager, username, api_id, api_hash, target_channel_name):
         self.event_manager = event_manager
 
         # TG client connection credentials
@@ -24,7 +23,6 @@ class Parser:
         # Target channel and words
         self.target_channel_name = target_channel_name
         self.target_channel = None
-        self.target_words = target_words
 
     @log_async_func
     async def start_parser(self):

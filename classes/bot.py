@@ -43,62 +43,64 @@ class CustomBot:
     async def start_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_handler']
         markup = self.create_ui(ui_config['ui'])
-        msg, *_ = ui_config['msg']
+        success_msg, *_ = ui_config['msg']
 
         if message.text == '/start':
-            msg = self.greeting_str(message.from_user) + '\n\n' + msg
+            success_msg = self.greeting_str(message.from_user) + '\n\n' + success_msg
 
         user = self.user_from_message(message)
         self.event_manager.trigger_event('insert_user', user)
 
-        await message.answer(msg, reply_markup=markup)
+        await message.answer(success_msg, reply_markup=markup)
 
     @log_async_func
     async def cancel_handler(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['cancel_handler']
         markup = self.create_ui(ui_config['ui'])
-        msg, *_ = ui_config['msg']
+        success_msg, *_ = ui_config['msg']
         state = kwargs['state']
 
         current_state = await state.get_state()
         if current_state:
             await state.finish()
 
-        await message.answer(msg, reply_markup=markup)
+        await message.answer(success_msg, reply_markup=markup)
         await self.start_handler(message)
 
     @log_async_func
     async def get_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['get_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg, *_ = ui_config['msg']
+        success_msg, _, extra_msg = ui_config['msg']
 
-        old_target_words = self.event_manager.trigger_event('fetch_target_words',
-                                                            user_filter={'id': message.chat.id})
+        db_target_words = self.event_manager.trigger_event('fetch_target_words',
+                                                           user_filter={'id': message.chat.id})
 
-        if old_target_words:
-            msg += '\n\nCurrent target words: ' + ', '.join(old_target_words)
+        if db_target_words:
+            success_msg += '\n\n' + extra_msg + ', '.join(db_target_words)
 
         await Form.process_target_words.set()
-        await message.answer(msg, reply_markup=markup)
+        await message.answer(success_msg, reply_markup=markup)
 
     @log_async_func
     async def process_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['process_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg, error_msg, _ = ui_config['msg']
+        success_msg, error_msg, _ = ui_config['msg']
         state = kwargs['state']
 
-        if message.content_type != 'text':
-            target_words = []
-            msg = error_msg
+        if message.content_type == 'text':
+            target_words_raw = message.text.split(',')
+            new_target_words = [target_word.strip() for target_word in target_words_raw]
+            new_target_words = list(dict.fromkeys(new_target_words))
+            msg = success_msg + '\n' + ', '.join(new_target_words)
         else:
-            target_word_raw = message.text.split(',')
-            target_words = list(dict.fromkeys(target_word_raw))
-            msg += '\n' + ', '.join(target_words)
+            new_target_words = []
+            msg = error_msg
 
+        # Setting up target words in bot storage
         async with state.proxy() as data:
-            data['name'] = target_words
+            data['name'] = new_target_words
 
         await Form.modify_target_words.set()
         await message.answer(msg, reply_markup=markup)
@@ -107,13 +109,14 @@ class CustomBot:
     async def modify_target_words(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['modify_target_words']
         markup = self.create_ui(ui_config['ui'])
-        msg, *_ = ui_config['msg']
+        success_msg, *_ = ui_config['msg']
         state = kwargs['state']
         append_cond, replace_cond = ui_config['extras']
 
         # Getting target words from DB
-        old_target_words = self.event_manager.trigger_event('fetch_target_words',
-                                                            user_filter={'id': message.chat.id})
+        db_target_words = self.event_manager.trigger_event('fetch_target_words',
+                                                           user_filter={'id': message.chat.id})
+
         # Getting new target words from bot storage
         async with state.proxy() as data:
             new_target_words = data['name']
@@ -121,28 +124,27 @@ class CustomBot:
         # Getting user form message and updating target words
         user = self.user_from_message(message)
 
-        target_words = list(dict.fromkeys(new_target_words + old_target_words))
         if message.text.strip() == append_cond:
-            user['target_words'].extend(target_words)
+            user['target_words'] = db_target_words + new_target_words
         elif message.text.strip() == replace_cond:
-            user['target_words'] = target_words
+            user['target_words'] = new_target_words
 
         self.event_manager.trigger_event('update_target_words', user)
-        msg += '\n' + ', '.join(target_words)
+        success_msg += '\n' + ', '.join(user['target_words'])
 
         await state.finish()
-        await message.answer(msg, reply_markup=markup)
+        await message.answer(success_msg, reply_markup=markup)
         await self.start_handler(message)
 
     @log_async_func
     async def start_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['start_parsing']
         markup = self.create_ui(ui_config['ui'])
-        msg, error_msg, _ = ui_config['msg']
+        success_msg, error_msg, _ = ui_config['msg']
 
         if self.user_from_message(message):
             await self.event_manager.trigger_event('start_parser')
-            await message.answer(msg, reply_markup=markup)
+            await message.answer(success_msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
 
@@ -152,11 +154,11 @@ class CustomBot:
     async def pause_parsing(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['pause_parsing']
         markup = self.create_ui(ui_config['ui'])
-        msg, error_msg, _ = ui_config['msg']
+        success_msg, error_msg, _ = ui_config['msg']
 
         if self.user_from_message(message):
             await self.event_manager.trigger_event('pause_parser')
-            await message.answer(msg, reply_markup=markup)
+            await message.answer(success_msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
 
@@ -166,11 +168,11 @@ class CustomBot:
     async def delete_parsed_info(self, message: types.Message, **kwargs):
         ui_config = self.ui_elements['delete_parsed_info']
         markup = self.create_ui(ui_config['ui'])
-        msg, error_msg, _ = ui_config['msg']
+        success_msg, error_msg, _ = ui_config['msg']
 
         if user := self.user_from_message(message):
             self.event_manager.trigger_event('delete_user', user)
-            await message.answer(msg, reply_markup=markup)
+            await message.answer(success_msg, reply_markup=markup)
         else:
             await message.answer(error_msg, reply_markup=markup)
 
