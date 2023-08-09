@@ -1,3 +1,6 @@
+from utils.common import logger
+
+
 class EventManager:
     def __init__(self):
         self.event_handlers = {}
@@ -11,3 +14,5 @@ class EventManager:
         if event_name in self.event_handlers:
             for handler in self.event_handlers[event_name]:
                 return handler(*args, **kwargs)
+        else:
+            logger.info(f'There is no such event - {event_name}')

@@ -1,5 +1,5 @@
 telethon
 pymongo
 flake8
-requests
 aiogram
+cryptg
