@@ -75,6 +75,12 @@ class DB:
         return parsed_data
 
     @log_func
+    def fetch_parsed_data_by_user_id(self, user_id):
+        parsed_data = list(self.parsed_data_table.find())
+        parsed_data = [post for post in parsed_data if user_id in post['user_id']]
+        return parsed_data
+
+    @log_func
     def delete_user(self, user_id):
         self.user_table.delete_one({'id': user_id})
 
