@@ -14,11 +14,13 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read("config/config.ini")
 
-    # Setting configuration values
+    # Parser
     api_id = config['Telegram']['api_id']
     api_hash = config['Telegram']['api_hash']
-
     username = config['Telegram']['username']
+    target_channel = config['Telegram']['target_channel']
+
+    # Bot
     bot_token = config['Telegram']['bot_token']
 
     # DB
@@ -27,13 +29,12 @@ if __name__ == '__main__':
     user_table_name = db_config['user_table_name']
     parsed_data_table_name = db_config['parsed_data_table_name']
 
-    # Parser
-    target_channel = config['Telegram']['target_channel']
-
+    # Required instances
     event_manager = EventManager()
     bot = CustomBot(event_manager, bot_token, ui_config)
     db = DB(event_manager, db_uri, db_name, user_table_name, parsed_data_table_name)
     parser = Parser(event_manager, username, api_id, api_hash, target_channel)
 
+    # Dispatcher
     dispatcher = Dispatcher(event_manager, bot, db, parser)
     asyncio.run(dispatcher.start())

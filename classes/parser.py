@@ -18,7 +18,7 @@ class Parser:
         self.me = None
 
         # Flag to pause parsing process
-        self.is_paused = True
+        self.is_paused = False
 
         # Target channel and words
         self.target_channel_name = target_channel_name
@@ -50,30 +50,46 @@ class Parser:
 
     @log_async_func
     async def _new_message_handler(self, event):
-        # Skipping if parsing process is stopped
-        if self.is_paused:
-            return
-
         message = event.message
         users = self.event_manager.trigger_event('fetch_users')
 
         for user in users:
+            if not user['start_parsing']:
+                continue
+
             for target_word in user['target_words']:
-                if re.match(target_word, message.text, flags=re.IGNORECASE):
+                target_word = re.escape(target_word)
+                if re.match(target_word, message.text, flags=re.IGNORECASE | re.UNICODE):
                     post_link = f'https://t.me/c/{self.target_channel.id}/{message.id}/'
+                    post = self.event_manager.trigger_event('fetch_parsed_data', post_link)
 
-                    self.event_manager.trigger_event(
-                        'insert_parsed_data',
-                        {
-                            'post_link': post_link,
-                            'message': message.text,
-                        }
-                    )
+                    # If there is post in DB, updating its user_id field
+                    if post:
+                        self.event_manager.trigger_event(
+                            'update_parsed_data',
+                            {
+                                'user_id': post['user_id'] + [user['id']],
+                                'post_link': post_link,
+                                'message': message.text,
+                                'target_word': target_word
+                            }
+                        )
+                    # Otherwise inserting new post
+                    else:
+                        self.event_manager.trigger_event(
+                            'insert_parsed_data',
+                            {
+                                'user_id': [user['id']],
+                                'post_link': post_link,
+                                'message': message.text,
+                                'target_word': target_word
+                            }
+                        )
 
-                    msg = 'New message that you might be interested in has been posted\n\n'
-                    msg += f'[Post link]({post_link})\n\n'
-                    msg += 'Message content:\n' + message.text
+                    msg = f'New <a href="{post_link}">post</a> that you might be interested in '
+                    msg += 'has been posted\n\n'
+                    msg += 'Target word found: ' + target_word
 
                     await self.event_manager.trigger_event('notify_user', user['id'], msg,
-                                                           parse_mode=ParseMode.MARKDOWN)
+                                                           parse_mode=ParseMode.HTML)
                     break
