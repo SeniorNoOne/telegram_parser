@@ -58,7 +58,6 @@ class Parser:
                 continue
 
             for target_word in user['target_words']:
-                target_word = re.escape(target_word)
                 if re.match(target_word, message.text, flags=re.IGNORECASE | re.UNICODE):
                     post_link = f'https://t.me/c/{self.target_channel.id}/{message.id}/'
                     post = self.event_manager.trigger_event('fetch_parsed_data', post_link)
