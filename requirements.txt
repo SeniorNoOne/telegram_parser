@@ -3,3 +3,4 @@ pymongo
 flake8
 aiogram
 cryptg
+mysql-connector-python

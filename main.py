@@ -2,7 +2,7 @@ import asyncio
 import configparser
 
 from classes.bot import CustomBot
-from classes.db_conn import DB
+from classes.mongo_db_conn import DB
 from classes.parser import Parser
 from classes.dispatcher import Dispatcher
 from classes.event_manager import EventManager
@@ -15,16 +15,16 @@ if __name__ == '__main__':
     config.read("config/config.ini")
 
     # Parser
-    api_id = config['Telegram']['api_id']
-    api_hash = config['Telegram']['api_hash']
-    username = config['Telegram']['username']
+    api_id = config['telegram']['api_id']
+    api_hash = config['telegram']['api_hash']
+    username = config['telegram']['username']
     target_channel = config['Telegram']['target_channel']
 
     # Bot
-    bot_token = config['Telegram']['bot_token']
+    bot_token = config['telegram']['bot_token']
 
     # DB
-    db_uri = config['DB']['uri']
+    db_uri = config['mongodb']['uri']
     db_name = db_config['db_name']
     user_table_name = db_config['user_table_name']
     parsed_data_table_name = db_config['parsed_data_table_name']
