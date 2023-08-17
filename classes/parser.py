@@ -46,6 +46,8 @@ class Parser:
         self.target_channel = await self.client.get_entity(self.target_channel_name)
         self.client.add_event_handler(self._new_message_handler,
                                       events.NewMessage(chats=self.target_channel))
+        logger.info(f'Listening to a channel {self.target_channel.title}')
+
         await self.client.run_until_disconnected()
 
     @log_async_func
@@ -58,7 +60,7 @@ class Parser:
                 continue
 
             for target_word in user['target_words']:
-                if re.match(target_word, message.text, flags=re.IGNORECASE | re.UNICODE):
+                if re.search(target_word, message.text, flags=re.IGNORECASE | re.UNICODE):
                     post_link = f'https://t.me/c/{self.target_channel.id}/{message.id}/'
                     post = self.event_manager.trigger_event('fetch_parsed_data', post_link)
 
