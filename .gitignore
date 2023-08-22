@@ -4,3 +4,4 @@ venv
 
 config.ini
 *.session
+*.session-journal
